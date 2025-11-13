@@ -1,0 +1,394 @@
+///////////////////////////////////////////////////////////////
+// 🌐 DATABASE + GENERATOR
+///////////////////////////////////////////////////////////////
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+///////////////////////////////////////////////////////////////
+// 👤 USER + AUTHENTICATION
+///////////////////////////////////////////////////////////////
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String?
+  avatarUrl    String?
+  plan         PlanType @default(FREE)
+  emailVerified  Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  // ✅ Relationships
+  sessions      Session[]
+  oauthAccounts OAuthAccount[]
+  preferences   UserPreferences?
+  activityLogs  UserActivityLog[]
+  roomsCreated  Room[]               @relation("RoomOwner")
+  memberships   RoomMember[]
+  messages      Message[]
+  reactions     Reaction[]
+  snapshots     FileSnapshot[]
+  executions    Execution[]
+  subscriptions Subscription[]
+  payments      PaymentTransaction[]
+  notifications Notification[]
+
+  // 🔹 Dynamic RBAC relationship
+  userRoles UserRole[]
+}
+
+model OAuthAccount {
+  id           String    @id @default(cuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  provider     String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+
+  @@unique([provider, providerId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  refreshToken String   @unique
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+}
+
+model UserPreferences {
+  id       String @id @default(cuid())
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String @unique
+  theme    String @default("light")
+  fontSize Int    @default(14)
+  tabSize  Int    @default(2)
+  language String @default("javascript")
+}
+
+///////////////////////////////////////////////////////////////
+// 💬 COLLAB ROOMS
+///////////////////////////////////////////////////////////////
+
+model Room {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  owner       User      @relation("RoomOwner", fields: [ownerId], references: [id])
+  ownerId     String
+  language    String
+  inviteCode  String?   @unique
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  members    RoomMember[]
+  settings   RoomSetting?
+  files      File[]
+  messages   Message[]
+  executions Execution[]
+  invites    Invite[]
+  analytics  RoomAnalytics?
+}
+
+model RoomMember {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId   String
+  role     RoleType @default(VIEWER)
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, roomId])
+}
+
+model RoomSetting {
+  id             String  @id @default(cuid())
+  room           Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId         String  @unique
+  autoSave       Boolean @default(true)
+  allowGuests    Boolean @default(true)
+  editorFontSize Int     @default(14)
+  theme          String  @default("light")
+}
+
+///////////////////////////////////////////////////////////////
+// 📂 FILES + EXECUTION + MESSAGES
+///////////////////////////////////////////////////////////////
+
+model File {
+  id        String         @id @default(cuid())
+  room      Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId    String
+  name      String
+  content   String         @default("")
+  path      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+  snapshots FileSnapshot[]
+}
+
+model FileSnapshot {
+  id          String   @id @default(cuid())
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  code        String
+  language    String
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+model Execution {
+  id           String     @id @default(cuid())
+  room         Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  jobId        String?
+  language     String
+  code         String
+  input        String?
+  output       String?
+  status       ExecStatus
+  execTimeMs   Int?
+  memoryUsedKb Int?
+  errorMessage String?
+  createdAt    DateTime   @default(now())
+  // ✅ Optional jobId for queue tracking
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  text      String
+  replyToId String?
+  pinned    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  reactions Reaction[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
+///////////////////////////////////////////////////////////////
+// 💳 BILLING + SUBSCRIPTIONS
+///////////////////////////////////////////////////////////////
+
+model Subscription {
+  id             String               @id @default(cuid())
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  plan           PlanType
+  razorpayPlanId String // 🔹 maps to Razorpay plan ID (from .env)
+  razorpaySubId  String? // 🔹 optional Razorpay subscription ID (if created via API)
+  status         BillingStatus        @default(ACTIVE)
+  startDate      DateTime
+  endDate        DateTime
+  activatedAt    DateTime?
+  autoRenew      Boolean              @default(false)
+  isActive       Boolean              @default(true)
+  payments       PaymentTransaction[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId, isActive, endDate])
+}
+
+model PaymentTransaction {
+  id             String        @id @default(cuid())
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+
+  // ⚙️ Razorpay identifiers
+  orderId   String?
+  paymentId String?
+
+  amount      Float
+  currency    String        @default("INR")
+  status      PaymentStatus
+  provider    String?       @default("razorpay")
+  rawResponse Json?
+  createdAt   DateTime      @default(now())
+
+  // ✅ Safe composite index (not unique)
+  @@index([orderId, paymentId], map: "idx_order_payment_pair")
+}
+
+///////////////////////////////////////////////////////////////
+// 🔔 NOTIFICATIONS + INVITES + ANALYTICS
+///////////////////////////////////////////////////////////////
+
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      NotificationType
+  message   String
+  refType   String?
+  refId     String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId    String
+  code      String   @unique
+  createdBy String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model UserActivityLog {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  action    String
+  meta      Json?
+  createdAt DateTime @default(now())
+}
+
+model RoomAnalytics {
+  id          String   @id @default(cuid())
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId      String   @unique
+  totalEdits  Int      @default(0)
+  totalExecs  Int      @default(0)
+  activeUsers Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+///////////////////////////////////////////////////////////////
+// 🔐 GLOBAL ROLE-BASED ACCESS CONTROL (RBAC)
+///////////////////////////////////////////////////////////////
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+  // 🔹 New for hierarchy
+  parentRoleId    String?
+  parentRole      Role?            @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  subRoles        Role[]           @relation("RoleHierarchy")
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  action          String
+  resource        String
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+
+  @@unique([action, resource])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  assignedAt   DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+///////////////////////////////////////////////////////////////
+// 🧱 ENUMS
+///////////////////////////////////////////////////////////////
+
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum RoleType {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum BillingStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+}
+
+enum ExecStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  SYSTEM
+  ROOM
+  EXECUTION
+  BILLING
+  ADMIN
+}

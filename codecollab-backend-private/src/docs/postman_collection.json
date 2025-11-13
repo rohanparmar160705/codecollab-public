@@ -1,0 +1,713 @@
+{
+  "info": {
+    "_postman_id": "e6f6e0b8-7f93-4d0d-8e3b-cc2b2a4f0c11",
+    "name": "CodeCollab API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for CodeCollab Backend"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "(function bootstrapAuth(){",
+          "  const baseUrl = pm.collectionVariables.get('baseUrl') || 'http://localhost:4000/api';",
+          "  const existing = pm.collectionVariables.get('authToken');",
+          "  if (existing && existing.startsWith('Bearer ')) { return; }",
+          "  const email = pm.collectionVariables.get('email') || ('user_' + Date.now() + '@example.com');",
+          "  const password = pm.collectionVariables.get('password') || 'StrongP@ssw0rd';",
+          "  pm.collectionVariables.set('email', email);",
+          "  pm.collectionVariables.set('password', password);",
+          "  const registerReq = { url: baseUrl + '/auth/register', method: 'POST', header: [{key:'Content-Type', value:'application/json'}], body: { mode:'raw', raw: JSON.stringify({ username: 'AutoUser', email, password }) } };",
+          "  pm.sendRequest(registerReq, function(){",
+          "    const loginReq = { url: baseUrl + '/auth/login', method: 'POST', header: [{key:'Content-Type', value:'application/json'}], body: { mode:'raw', raw: JSON.stringify({ email, password }) } };",
+          "    pm.sendRequest(loginReq, function(err, res){",
+          "      if (err) { return; }",
+          "      try {",
+          "        const json = res.json();",
+          "        const access = json.accessToken || json.token || (json.data && (json.data.accessToken || json.data.token));",
+          "        const user = json.user || (json.data && json.data.user) || {};",
+          "        if (access) { pm.collectionVariables.set('authToken', 'Bearer ' + access); }",
+          "        if (user.id) { pm.collectionVariables.set('userId', user.id); }",
+          "      } catch (e) { /* ignore */ }",
+          "    });",
+          "  });",
+          "})();"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice\",\n  \"email\": \"alice@example.com\",\n  \"password\": \"StrongP@ssw0rd\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"StrongP@ssw0rd\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/refresh-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"<paste-refresh-token>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset-token>\",\n  \"password\": \"NewStrong@123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/profile"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"Alice\",\n  \"email\": \"alice@example.com\",\n  \"avatarUrl\": \"https://example.com/a.png\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get User Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/users/{{userId}}/rooms"
+          }
+        },
+        {
+          "name": "List Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Assign Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/assign-role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"roleId\": \"{{roleId}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Role",
+      "item": [
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"MODERATOR\",\n  \"description\": \"Can moderate rooms\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/roles"
+          }
+        },
+        {
+          "name": "Assign Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/roles/assign-permission",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"{{roleId}}\",\n  \"permissionId\": \"{{permissionId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Set Parent Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/roles/set-parent",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"{{roleId}}\",\n  \"parentRoleId\": \"{{parentRoleId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Role Hierarchy",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/roles/hierarchy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Permission",
+      "item": [
+        {
+          "name": "List Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/permissions"
+          }
+        },
+        {
+          "name": "Create Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/permissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"update\",\n  \"resource\": \"rooms\",\n  \"description\": \"Update rooms\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Permission",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/permissions/{{permissionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Room",
+      "item": [
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Team Alpha\",\n  \"language\": \"typescript\",\n  \"description\": \"Sprint doc\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms"
+          }
+        },
+        {
+          "name": "Get Room",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          }
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          }
+        },
+        {
+          "name": "Join Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/rooms/join",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"userId\": \"{{userId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Leave Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/rooms/leave",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"userId\": \"{{userId}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "File",
+      "item": [
+        {
+          "name": "Create File",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/files/rooms/{{roomId}}/files",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"index.ts\",\n  \"content\": \"console.log('hi')\",\n  \"path\": \"/src/index.ts\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Files",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/rooms/{{roomId}}/files"
+          }
+        },
+        {
+          "name": "Get File",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/{{fileId}}"
+          }
+        },
+        {
+          "name": "Update File",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/files/{{fileId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"index.ts\",\n  \"content\": \"console.log('updated')\",\n  \"path\": \"/src/index.ts\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/{{fileId}}"
+          }
+        },
+        {
+          "name": "Create Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/files/{{fileId}}/snapshots",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"console.log('snapshot')\",\n  \"language\": \"javascript\",\n  \"description\": \"Initial snapshot\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Snapshots",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/files/{{fileId}}/snapshots"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execution",
+      "item": [
+        {
+          "name": "Execute Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/execution/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"console.log(1+1)\",\n  \"language\": \"javascript\",\n  \"input\": \"\",\n  \"roomId\": \"{{roomId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Executions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/execution"
+          }
+        },
+        {
+          "name": "Get Execution",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/execution/{{executionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/billing/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planType\": \"1M\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/billing/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_subscription_id\": \"sub_123\",\n  \"razorpay_payment_id\": \"pay_456\",\n  \"razorpay_signature\": \"sig_abc\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Active Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/billing/active"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notification",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/notifications"
+          }
+        },
+        {
+          "name": "Mark Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/notifications/{{notificationId}}/read"
+          }
+        },
+        {
+          "name": "Clear All",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/notifications/clear"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/analytics/overview"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/admin/users"
+          }
+        },
+        {
+          "name": "Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/admin/rooms"
+          }
+        },
+        {
+          "name": "Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/admin/subscriptions"
+          }
+        },
+        {
+          "name": "Executions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/admin/executions"
+          }
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/admin/metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Get Room Chat",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "{{authToken}}" }
+            ],
+            "url": "{{baseUrl}}/chat/{{roomId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth",
+      "item": [
+        {
+          "name": "Get Google OAuth URL",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/oauth/google/url?state=popup"
+          }
+        },
+        {
+          "name": "Get GitHub OAuth URL",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/oauth/github/url?state=popup"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Healthcheck",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api" },
+    { "key": "authToken", "value": "" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "StrongP@ssw0rd" },
+    { "key": "userId", "value": "" },
+    { "key": "roomId", "value": "room_123" },
+    { "key": "fileId", "value": "file_123" },
+    { "key": "executionId", "value": "exec_123" },
+    { "key": "roleId", "value": "role_123" },
+    { "key": "permissionId", "value": "perm_123" },
+    { "key": "parentRoleId", "value": "role_parent" },
+    { "key": "notificationId", "value": "notif_123" }
+  ]
+}

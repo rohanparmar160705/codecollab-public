@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: codecollab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    image: ${REGISTRY}/codecollab-backend:${BACKEND_TAG:-latest}
+    env_file:
+      - ./backend.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/codecollab?schema=public
+      REDIS_URL: redis://redis:6379
+      DOCKER_IMAGE_NODE: codecollab-runner-node:latest
+      DOCKER_IMAGE_PYTHON: codecollab-runner-python:latest
+      DOCKER_IMAGE_CPP: codecollab-runner-cpp:latest
+      DOCKER_IMAGE_JAVA: codecollab-runner-java:latest
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner-node:
+        condition: service_started
+      runner-python:
+        condition: service_started
+      runner-cpp:
+        condition: service_started
+      runner-java:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    image: ${REGISTRY}/codecollab-frontend:${FRONTEND_TAG:-latest}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  runner-node:
+    image: codecollab-runner-node:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+  runner-python:
+    image: codecollab-runner-python:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+  runner-cpp:
+    image: codecollab-runner-cpp:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+  runner-java:
+    image: codecollab-runner-java:latest
+    command: ["sh", "-c", "sleep infinity"]
+
+volumes:
+  pgdata:

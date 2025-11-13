@@ -1,0 +1,28 @@
+pipeline {
+  agent any
+  environment {
+    REGISTRY = credentials('docker_registry_url')
+    REG_USER = credentials('docker_registry_user')
+    REG_PASS = credentials('docker_registry_pass')
+    BACKEND_TAG = ""
+    FRONTEND_TAG = ""
+  }
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+    stage('Login Registry') {
+      steps { sh "echo ${REG_PASS} | docker login ${REGISTRY} -u ${REG_USER} --password-stdin" }
+    }
+    stage('Pull & Deploy') {
+      steps {
+        dir('infra') {
+          script {
+            // Allow external override; otherwise keep existing compose tags
+            def deployEnv = "BACKEND_TAG=${env.BACKEND_TAG} FRONTEND_TAG=${env.FRONTEND_TAG} REGISTRY=${env.REGISTRY}"
+            sh "${deployEnv} docker compose pull"
+            sh "${deployEnv} docker compose up -d"
+          }
+        }
+      }
+    }
+  }
+}

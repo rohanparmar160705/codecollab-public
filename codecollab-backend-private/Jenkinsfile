@@ -1,0 +1,64 @@
+pipeline {
+  agent any
+  environment {
+    NODE_ENV = 'production'
+    REGISTRY = credentials('docker_registry_url')
+    REG_USER = credentials('docker_registry_user')
+    REG_PASS = credentials('docker_registry_pass')
+    BACKEND_TAG = ""
+  }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Setup Node & Docker') {
+      steps {
+        sh 'node -v || true'
+        sh 'npm -v || true'
+      }
+    }
+    stage('Install') {
+      steps { dir('codecollab-backend') { sh 'npm ci' } }
+    }
+    stage('Build') {
+      steps { dir('codecollab-backend') { sh 'npm run build' } }
+    }
+    stage('Test') {
+      steps { dir('codecollab-backend') { sh 'npm test' } }
+    }
+    stage('Docker Build & Push') {
+      steps {
+        dir('codecollab-backend') {
+          script {
+            // Compute content hash for backend directory to use as immutable tag
+            def treeHash = sh(returnStdout: true, script: 'git rev-parse HEAD:codecollab-backend').trim()
+            env.BACKEND_TAG = treeHash.take(12)
+            def remoteImage = "${REGISTRY}/codecollab-backend:${env.BACKEND_TAG}"
+            sh "echo ${REG_PASS} | docker login ${REGISTRY} -u ${REG_USER} --password-stdin"
+            // Skip build if image already exists in registry
+            def exists = sh(returnStatus: true, script: "docker manifest inspect ${remoteImage} > /dev/null 2>&1") == 0
+            if (!exists) {
+              sh "docker build -t codecollab-backend:${env.BACKEND_TAG} ."
+              sh "docker tag codecollab-backend:${env.BACKEND_TAG} ${remoteImage}"
+              sh "docker push ${remoteImage}"
+            } else {
+              echo "Image ${remoteImage} already exists. Skipping build/push."
+            }
+          }
+        }
+      }
+    }
+    stage('Deploy') {
+      when { expression { return env.DEPLOY == 'true' } }
+      steps {
+        dir('infra') {
+          script {
+            def deployEnv = "BACKEND_TAG=${env.BACKEND_TAG} FRONTEND_TAG=${env.FRONTEND_TAG ?: env.BUILD_NUMBER} REGISTRY=${env.REGISTRY}"
+            sh "${deployEnv} docker compose pull"
+            sh "${deployEnv} docker compose up -d"
+          }
+        }
+      }
+    }
+  }
+}

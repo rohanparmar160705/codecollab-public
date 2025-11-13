@@ -1,0 +1,291 @@
+{
+  "generatedAt": "2025-11-04T19:01:00+05:30",
+  "summary": {
+    "totalAPIs": 45,
+    "totalWebSocketEvents": 14,
+    "totalWebhooks": 0,
+    "totalServices": 13,
+    "totalPrismaModels": 22,
+    "totalModules": 13
+  },
+  "modules": [
+    {
+      "name": "Auth",
+      "routePrefix": "/api/auth",
+      "apis": [
+        { "method": "POST", "path": "/register", "controller": "AuthController.register", "middlewares": [] },
+        { "method": "POST", "path": "/login", "controller": "AuthController.login", "middlewares": [] },
+        { "method": "POST", "path": "/refresh-token", "controller": "AuthController.refresh", "middlewares": [] },
+        { "method": "POST", "path": "/forgot-password", "controller": "AuthController.forgotPassword", "middlewares": [] },
+        { "method": "POST", "path": "/reset-password", "controller": "AuthController.resetPassword", "middlewares": [] }
+      ],
+      "services": ["auth.service.ts"],
+      "dependencies": ["prisma", "utils/jwt", "utils/hash", "utils/mailer", "utils/token", "config/env"]
+    },
+    {
+      "name": "User",
+      "routePrefix": "/api/users",
+      "apis": [
+        { "method": "GET", "path": "/profile", "controller": "UserController.getProfile", "middlewares": ["verifyToken"] },
+        { "method": "PUT", "path": "/profile", "controller": "UserController.updateProfile", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/:id/rooms", "controller": "UserController.getUserRooms", "middlewares": ["verifyToken", "checkPermission(read, rooms)"] },
+        { "method": "GET", "path": "/", "controller": "UserController.getAll", "middlewares": ["verifyToken", "checkPermission(read, users)"] },
+        { "method": "POST", "path": "/assign-role", "controller": "UserController.assignRole", "middlewares": ["verifyToken", "checkPermission(update, roles)"] }
+      ],
+      "services": ["user.service.ts"],
+      "dependencies": ["prisma", "utils/response"]
+    },
+    {
+      "name": "Role",
+      "routePrefix": "/api/roles",
+      "apis": [
+        { "method": "POST", "path": "/", "controller": "RoleController.create", "middlewares": ["verifyToken", "checkPermission(create, roles)"] },
+        { "method": "GET", "path": "/", "controller": "RoleController.getAll", "middlewares": ["verifyToken", "checkPermission(read, roles)"] },
+        { "method": "POST", "path": "/assign-permission", "controller": "RoleService.assignPermission", "middlewares": ["verifyToken", "checkPermission(update, permissions)"] },
+        { "method": "POST", "path": "/set-parent", "controller": "RoleHierarchyController.setParent", "middlewares": ["verifyToken", "checkPermission(update, roles)"] },
+        { "method": "GET", "path": "/hierarchy", "controller": "RoleHierarchyController.getHierarchy", "middlewares": ["verifyToken", "checkPermission(read, roles)"] }
+      ],
+      "services": ["role.service.ts", "roleHierarchy.service.ts"],
+      "dependencies": ["prisma", "utils/appError", "utils/response"]
+    },
+    {
+      "name": "Permission",
+      "routePrefix": "/api/permissions",
+      "apis": [
+        { "method": "GET", "path": "/", "controller": "PermissionController.getAll", "middlewares": ["authenticate", "checkPermission(read, permissions)"] },
+        { "method": "POST", "path": "/", "controller": "PermissionController.create", "middlewares": ["authenticate", "checkPermission(create, permissions)"] },
+        { "method": "DELETE", "path": "/:id", "controller": "PermissionController.remove", "middlewares": ["authenticate", "checkPermission(delete, permissions)"] }
+      ],
+      "services": ["permission.service.ts"],
+      "dependencies": ["@prisma/client"]
+    },
+    {
+      "name": "Room",
+      "routePrefix": "/api/rooms",
+      "apis": [
+        { "method": "POST", "path": "/", "controller": "RoomController.create", "middlewares": ["verifyToken", "checkPermission(create, rooms)"] },
+        { "method": "GET", "path": "/", "controller": "RoomController.getAll", "middlewares": ["verifyToken", "checkPermission(read, rooms)"] },
+        { "method": "GET", "path": "/:id", "controller": "RoomController.getById", "middlewares": ["verifyToken", "checkPermission(read, rooms)"] },
+        { "method": "DELETE", "path": "/:id", "controller": "RoomController.delete", "middlewares": ["verifyToken", "checkPermission(delete, rooms)"] },
+        { "method": "POST", "path": "/join", "controller": "RoomController.join", "middlewares": ["verifyToken"] },
+        { "method": "POST", "path": "/leave", "controller": "RoomController.leave", "middlewares": ["verifyToken"] }
+      ],
+      "services": ["room.service.ts"],
+      "dependencies": ["prisma", "utils/response", "validation (room.validation)"]
+    },
+    {
+      "name": "File",
+      "routePrefix": "/api/files",
+      "apis": [
+        { "method": "POST", "path": "/rooms/:roomId/files", "controller": "FileController.create", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/rooms/:roomId/files", "controller": "FileController.list", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/:id", "controller": "FileController.getById", "middlewares": ["verifyToken"] },
+        { "method": "PUT", "path": "/:id", "controller": "FileController.update", "middlewares": ["verifyToken"] },
+        { "method": "DELETE", "path": "/:id", "controller": "FileController.delete", "middlewares": ["verifyToken"] },
+        { "method": "POST", "path": "/:id/snapshots", "controller": "FileController.createSnapshot", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/:id/snapshots", "controller": "FileController.listSnapshots", "middlewares": ["verifyToken"] }
+      ],
+      "services": ["file.service.ts"],
+      "dependencies": ["prisma", "Socket.IO", "zod validation", "utils/response", "utils/appError"]
+    },
+    {
+      "name": "Execution",
+      "routePrefix": "/api/execution",
+      "apis": [
+        { "method": "POST", "path": "/execute", "controller": "ExecutionController.executeCode", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/", "controller": "ExecutionController.list", "middlewares": ["verifyToken"] },
+        { "method": "GET", "path": "/:id", "controller": "ExecutionController.getById", "middlewares": ["verifyToken"] }
+      ],
+      "services": ["execution.service.ts", "services/docker.service.ts"],
+      "dependencies": ["bullmq Queue (code-execution)", "prisma", "types/dtos"]
+    },
+    {
+      "name": "Billing",
+      "routePrefix": "/api/billing",
+      "apis": [
+        { "method": "POST", "path": "/create", "controller": "BillingController.startSubscription", "middlewares": ["authenticate"] },
+        { "method": "POST", "path": "/verify", "controller": "BillingController.verifyPayment", "middlewares": ["authenticate"] },
+        { "method": "GET", "path": "/active", "controller": "BillingController.getActiveSubscription", "middlewares": ["authenticate"] }
+      ],
+      "services": ["billing.service.ts"],
+      "dependencies": ["razorpay.client", "prisma", "dayjs", "verifyPayment signatures"]
+    },
+    {
+      "name": "Notification",
+      "routePrefix": "/api/notifications",
+      "apis": [
+        { "method": "GET", "path": "/", "controller": "NotificationController.getUserNotifications", "middlewares": ["verifyToken"] },
+        { "method": "PATCH", "path": "/:id/read", "controller": "NotificationController.markAsRead", "middlewares": ["verifyToken"] },
+        { "method": "DELETE", "path": "/clear", "controller": "NotificationController.clearAll", "middlewares": ["verifyToken"] }
+      ],
+      "services": ["notification.service.ts"],
+      "dependencies": ["prisma", "Socket.IO"]
+    },
+    {
+      "name": "Analytics",
+      "routePrefix": "/api/analytics",
+      "apis": [
+        { "method": "GET", "path": "/overview", "controller": "AnalyticsController.getOverview", "middlewares": ["verifyToken"] }
+      ],
+      "services": [],
+      "dependencies": ["prisma"]
+    },
+    {
+      "name": "Admin",
+      "routePrefix": "/api/admin",
+      "apis": [
+        { "method": "GET", "path": "/users", "controller": "AdminController.getAllUsers", "middlewares": ["verifyAdmin"] },
+        { "method": "GET", "path": "/rooms", "controller": "AdminController.getAllRooms", "middlewares": ["verifyAdmin"] },
+        { "method": "GET", "path": "/subscriptions", "controller": "AdminController.getAllSubscriptions", "middlewares": ["verifyAdmin"] }
+      ],
+      "services": ["admin.service.ts"],
+      "dependencies": ["prisma"]
+    },
+    {
+      "name": "Health",
+      "routePrefix": "/api",
+      "apis": [
+        { "method": "GET", "path": "/health", "controller": "healthCheck(Inline)", "middlewares": [] }
+      ],
+      "services": [],
+      "dependencies": []
+    }
+  ],
+  "websockets": {
+    "gateways": [
+      {
+        "file": "modules/collab/collab.gateway.ts",
+        "namespace": "/", 
+        "events": [
+          { "name": "join-room", "direction": "listen", "payload": "{ userId, username, roomId, roomOwnerId? }" },
+          { "name": "presence-update", "direction": "emit", "payload": "string[] usernames" },
+          { "name": "code-change", "direction": "listen", "payload": "{ roomId, code }" },
+          { "name": "code-update", "direction": "emit", "payload": "{ code }" },
+          { "name": "cursor-move", "direction": "listen", "payload": "{ roomId, userId, cursor }" },
+          { "name": "cursor-update", "direction": "emit", "payload": "{ userId, cursor }" },
+          { "name": "user-reconnect", "direction": "listen", "payload": "{ userId, username, roomId }" },
+          { "name": "leave-room", "direction": "listen", "payload": "{ userId, username, roomId }" },
+          { "name": "disconnect", "direction": "listen", "payload": null }
+        ]
+      }
+    ],
+    "otherEmits": [
+      { "source": "modules/file/file.service.ts", "events": ["file:created", "file:updated", "file:deleted", "file:snapshot"] },
+      { "source": "modules/notification/notification.service.ts", "events": ["notification:new"] }
+    ]
+  },
+  "webhooks": {
+    "endpoints": [],
+    "notes": "verifyRazorpayWebhook middleware exists but is not wired to a route"
+  },
+  "services": [
+    "modules/admin/admin.service.ts",
+    "modules/auth/auth.service.ts",
+    "modules/billing/billing.service.ts",
+    "modules/collab/ot.service.ts",
+    "modules/execution/execution.service.ts",
+    "modules/file/file.service.ts",
+    "modules/notification/notification.service.ts",
+    "modules/permission/permission.service.ts",
+    "modules/role/role.service.ts",
+    "modules/role/roleHierarchy.service.ts",
+    "modules/room/room.service.ts",
+    "modules/user/user.service.ts",
+    "services/docker.service.ts"
+  ],
+  "models": [
+    "User", "OAuthAccount", "Session", "UserPreferences", "Room", "RoomMember", "RoomSetting", "File", "FileSnapshot", "Execution", "Message", "Reaction", "Subscription", "PaymentTransaction", "Notification", "Invite", "UserActivityLog", "RoomAnalytics", "Role", "Permission", "RolePermission", "UserRole"
+  ],
+  "middlewares": [
+    { "file": "middlewares/auth.middleware.ts", "exports": ["authenticate", "checkPermission", "verifyToken", "authenticateWithSubscription"] },
+    { "file": "middlewares/permission.middleware.ts", "exports": ["checkPermission"] },
+    { "file": "middlewares/admin.middleware.ts", "exports": ["verifyAdmin"] },
+    { "file": "middlewares/error.middleware.ts", "exports": ["globalErrorHandler"] },
+    { "file": "middlewares/rateLimiter.middleware.ts", "exports": ["rateLimiter"] },
+    { "file": "middlewares/verifyEmail.middleware.ts", "exports": ["verifyEmailMiddleware"] },
+    { "file": "middlewares/verifyPayment.middleware.ts", "exports": ["verifyRazorpayWebhook", "verifyOrderPaymentSignature", "verifySubscriptionPaymentSignature"] }
+  ],
+  "utils": [
+    "utils/docker.ts", "utils/jwt.ts", "utils/hash.ts", "utils/mailer.ts", "utils/logger.ts", "utils/response.ts", "utils/token.ts", "utils/permissions.ts", "utils/appError.ts"
+  ],
+  "config": [
+    "config/env.ts", "config/prisma.ts", "config/redis.ts", "config/queue.ts", "config/razorpay.client.ts", "config/swagger.ts"
+  ],
+  "dependencyGraph": {
+    "controllersToServices": {
+      "AuthController": ["AuthService"],
+      "UserController": ["UserService"],
+      "RoleController": ["RoleService"],
+      "RoleHierarchyController": ["RoleHierarchyService"],
+      "PermissionController": ["PermissionService"],
+      "RoomController": ["RoomService"],
+      "FileController": ["FileService"],
+      "ExecutionController": ["ExecutionService"],
+      "BillingController": ["BillingService"],
+      "NotificationController": ["NotificationService"],
+      "AnalyticsController": ["prisma"],
+      "AdminController": ["AdminService"]
+    },
+    "servicesToInfra": {
+      "AuthService": ["prisma", "jwt", "bcrypt", "nodemailer"],
+      "BillingService": ["razorpay", "prisma", "dayjs"],
+      "ExecutionService": ["bullmq", "redis", "prisma"],
+      "FileService": ["prisma", "socket.io"],
+      "NotificationService": ["prisma", "socket.io"],
+      "RoomService": ["prisma"],
+      "UserService": ["prisma"],
+      "AdminService": ["prisma"]
+    }
+  },
+  "loc": {
+    "app.ts": 105,
+    "server.ts": 53,
+    "modules/collab/collab.gateway.ts": 142,
+    "modules/auth/auth.routes.ts": 15,
+    "modules/auth/auth.controller.ts": 85,
+    "modules/auth/auth.service.ts": 103,
+    "modules/user/user.routes.ts": 24,
+    "modules/user/user.controller.ts": 65,
+    "modules/user/user.service.ts": 112,
+    "modules/role/role.routes.ts": 57,
+    "modules/role/role.controller.ts": 60,
+    "modules/role/role.service.ts": 27,
+    "modules/role/roleHierarchy.controller.ts": 25,
+    "modules/role/roleHierarchy.service.ts": 26,
+    "modules/permission/permission.routes.ts": 32,
+    "modules/permission/permission.controller.ts": 30,
+    "modules/permission/permission.service.ts": 27,
+    "modules/room/room.routes.ts": 20,
+    "modules/room/room.controller.ts": 75,
+    "modules/room/room.service.ts": 77,
+    "modules/file/file.routes.ts": 39,
+    "modules/file/file.controller.ts": 189,
+    "modules/file/file.service.ts": 144,
+    "modules/execution/execution.routes.ts": 13,
+    "modules/execution/execution.controller.ts": 61,
+    "modules/execution/execution.service.ts": 78,
+    "modules/billing/billing.routes.ts": 26,
+    "modules/billing/billing.controller.ts": 87,
+    "modules/billing/billing.service.ts": 135,
+    "modules/notification/notification.routes.ts": 23,
+    "modules/notification/notification.controller.ts": 47,
+    "modules/notification/notification.service.ts": 56,
+    "modules/admin/admin.module.ts": 13,
+    "modules/admin/admin.routes.ts": 4,
+    "modules/admin/admin.controller.ts": 38,
+    "modules/admin/admin.service.ts": 51,
+    "middlewares/auth.middleware.ts": 91,
+    "middlewares/permission.middleware.ts": 63,
+    "middlewares/admin.middleware.ts": 28,
+    "middlewares/error.middleware.ts": 31,
+    "middlewares/rateLimiter.middleware.ts": 33,
+    "middlewares/verifyEmail.middleware.ts": 35,
+    "middlewares/verifyPayment.middleware.ts": 83,
+    "config/swagger.ts": 321,
+    "config/env.ts": 57,
+    "config/prisma.ts": 15,
+    "config/redis.ts": 70,
+    "config/queue.ts": 35,
+    "config/razorpay.client.ts": 24
+  }
+}

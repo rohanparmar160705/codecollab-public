@@ -1,0 +1,49 @@
+pipeline {
+  agent any
+  environment {
+    REGISTRY = credentials('docker_registry_url')
+    REG_USER = credentials('docker_registry_user')
+    REG_PASS = credentials('docker_registry_pass')
+    FRONTEND_TAG = ""
+  }
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+    stage('Setup Node') { steps { sh 'node -v || true'; sh 'npm -v || true' } }
+    stage('Install') { steps { dir('codecollab-frontend') { sh 'npm ci' } } }
+    stage('Build') { steps { dir('codecollab-frontend') { sh 'npm run build' } } }
+    stage('Docker Build & Push') {
+      steps {
+        dir('codecollab-frontend') {
+          script {
+            // Compute content hash for frontend directory to use as immutable tag
+            def treeHash = sh(returnStdout: true, script: 'git rev-parse HEAD:codecollab-frontend').trim()
+            env.FRONTEND_TAG = treeHash.take(12)
+            def remoteImage = "${REGISTRY}/codecollab-frontend:${env.FRONTEND_TAG}"
+            sh "echo ${REG_PASS} | docker login ${REGISTRY} -u ${REG_USER} --password-stdin"
+            // Skip build if image with this tag already exists in registry
+            def exists = sh(returnStatus: true, script: "docker manifest inspect ${remoteImage} > /dev/null 2>&1") == 0
+            if (!exists) {
+              sh "docker build -t codecollab-frontend:${env.FRONTEND_TAG} ."
+              sh "docker tag codecollab-frontend:${env.FRONTEND_TAG} ${remoteImage}"
+              sh "docker push ${remoteImage}"
+            } else {
+              echo "Image ${remoteImage} already exists. Skipping build/push."
+            }
+          }
+        }
+      }
+    }
+    stage('Deploy') {
+      when { expression { return env.DEPLOY == 'true' } }
+      steps {
+        dir('infra') {
+          script {
+            def deployEnv = "FRONTEND_TAG=${env.FRONTEND_TAG} BACKEND_TAG=${env.BACKEND_TAG ?: env.BUILD_NUMBER} REGISTRY=${env.REGISTRY}"
+            sh "${deployEnv} docker compose pull"
+            sh "${deployEnv} docker compose up -d"
+          }
+        }
+      }
+    }
+  }
+}

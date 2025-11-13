@@ -1,0 +1,130 @@
+/* Edit the variables in :root and .dark below to change the entire app theme (light + dark).
+   Key tokens: primary, brand-secondary, info, warning, background, foreground, card, border, input, ring, elevation. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Solar Aurora – Light */
+    --background: 0 0% 100%;
+    --foreground: 222 25% 10%;
+
+    --card: 0 0% 99%;
+    --card-foreground: 222 15% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 25% 10%;
+
+    --primary: 220 90% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 15% 92%;
+    --secondary-foreground: 222 10% 35%;
+
+    --muted: 222 15% 92%;
+    --muted-foreground: 222 10% 35%;
+
+    --accent: 220 90% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 40% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --info: 210 70% 50%;
+    --info-foreground: 0 0% 100%;
+    --warning: 38 85% 52%;
+    --warning-foreground: 20 14% 4%;
+
+    --brand-secondary: 262 40% 50%;
+    --brand-secondary-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 85%;
+    --input: 220 20% 85%;
+    --ring: 220 90% 56%;
+
+    --radius: 0.5rem;
+
+    --gradient-start: 220 100% 95%;
+    --gradient-end: 280 80% 90%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 25% 10%;
+    --sidebar-primary: 220 90% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 15% 92%;
+    --sidebar-accent-foreground: 222 10% 35%;
+    --sidebar-border: 220 20% 85%;
+    --sidebar-ring: 220 90% 56%;
+  }
+
+  /* Solar Aurora – Dark */
+  .dark {
+    --background: 222 28% 10%;
+    --foreground: 0 0% 100%;
+    --card: 223 25% 14%;
+    --card-foreground: 0 0% 100%;
+    --popover: 222 28% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 270 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 15% 20%;
+    --secondary-foreground: 222 20% 75%;
+    --muted: 222 15% 20%;
+    --muted-foreground: 222 20% 75%;
+    --accent: 270 100% 70%;
+    --accent-foreground: 0 0% 100%;
+    --success: 142 50% 55%;
+    --success-foreground: 0 0% 0%;
+    --info: 210 80% 65%;
+    --info-foreground: 0 0% 0%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 0%;
+    --brand-secondary: 262 60% 65%;
+    --brand-secondary-foreground: 0 0% 0%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 15% 30%;
+    --input: 222 15% 30%;
+    --ring: 270 100% 70%;
+
+    --gradient-start: 270 80% 20%;
+    --gradient-end: 220 80% 25%;
+
+    --sidebar-background: 222 28% 10%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 270 100% 70%;
+  }
+
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground transition-colors duration-200; }
+  html { scroll-behavior: smooth; }
+}
+
+@layer utilities {
+  .elevation-1 { box-shadow: 0 1px 2px 0 hsl(0 0% 0% / 0.05), 0 1px 1px -1px hsl(0 0% 0% / 0.05); }
+  .elevation-2 { box-shadow: 0 4px 8px -2px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1); }
+  .elevation-3 { box-shadow: 0 8px 16px -4px hsl(0 0% 0% / 0.15), 0 4px 6px -2px hsl(0 0% 0% / 0.1); }
+  .glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background-color: hsl(var(--card) / 0.7);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  /* Soft Aurora gradient background using design tokens */
+  .bg-aurora {
+    background-image:
+      radial-gradient(1200px 800px at 10% 0%, hsl(var(--gradient-start)) 0%, transparent 60%),
+      radial-gradient(1000px 700px at 100% 20%, hsl(var(--gradient-end)) 0%, transparent 55%),
+      linear-gradient(to bottom right, hsl(var(--background)), hsl(var(--background)));
+    background-color: hsl(var(--background));
+  }
+  .theme-transition * { transition: background-color .2s ease, border-color .2s ease, color .2s ease, fill .2s ease, stroke .2s ease; }
+}
